@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="落日港霓虹 Sunset Neon City 3D — a complete original 3D open-world crime game in the browser: drive, steal cars, outrun the police and run three story jobs.">
+<title>落日港霓虹 · SUNSET NEON CITY 3D — 开放世界犯罪游戏</title>
+<link rel="icon" href="data:,">
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #0c1020;
+    font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; color: #fff; }
+  #app, #app canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+  .hidden { display: none !important; }
+
+  /* ---- HUD ---- */
+  #hud { position: fixed; inset: 0; pointer-events: none; z-index: 5; }
+  #hud-top { position: absolute; top: 14px; left: 16px; display: flex; flex-direction: column; gap: 6px; }
+  #cash { font-size: 30px; font-weight: 800; color: #39d353; text-shadow: 0 2px 6px rgba(0,0,0,.8); letter-spacing: 1px; }
+  #stars { font-size: 26px; letter-spacing: 4px; text-shadow: 0 2px 6px rgba(0,0,0,.8); }
+  #health-bar { width: 220px; height: 14px; background: rgba(0,0,0,.55); border: 1px solid rgba(255,255,255,.5); border-radius: 7px; overflow: hidden; }
+  #health-fill { height: 100%; width: 100%; background: #39d353; transition: width .2s; }
+  #speed { position: absolute; right: 22px; bottom: 18px; font-size: 34px; font-weight: 800;
+    color: #fff; text-shadow: 0 2px 8px rgba(0,0,0,.9); }
+  #objective-box { position: absolute; top: 14px; left: 50%; transform: translateX(-50%);
+    max-width: 560px; background: rgba(10,12,24,.72); border-left: 4px solid #ff2e88;
+    padding: 10px 16px; border-radius: 6px; font-size: 15px; line-height: 1.5; }
+  #objective-box b { color: #ff7ab8; }
+  #minimap { position: absolute; right: 16px; top: 14px; width: 180px; height: 180px;
+    border: 2px solid rgba(255,255,255,.55); border-radius: 8px; background: rgba(12,16,26,.85); }
+  #toast { position: absolute; left: 50%; bottom: 120px; transform: translateX(-50%);
+    background: rgba(10,12,24,.8); padding: 10px 20px; border-radius: 20px; font-size: 16px;
+    transition: opacity .4s; white-space: nowrap; }
+  #crosshair { position: absolute; left: 50%; top: 50%; width: 22px; height: 22px;
+    transform: translate(-50%,-50%); display: none; }
+  #crosshair::before, #crosshair::after { content: ""; position: absolute; background: #fff;
+    box-shadow: 0 0 4px #000; }
+  #crosshair::before { left: 10px; top: 0; width: 2px; height: 22px; }
+  #crosshair::after { left: 0; top: 10px; width: 22px; height: 2px; }
+  #damage { position: fixed; inset: 0; pointer-events: none; opacity: 0; transition: opacity .25s;
+    background: radial-gradient(ellipse at center, transparent 55%, rgba(255,0,0,.55) 100%); z-index: 6; }
+  #hint { position: absolute; left: 16px; bottom: 14px; font-size: 13px; color: rgba(255,255,255,.75);
+    text-shadow: 0 1px 4px #000; line-height: 1.7; }
+
+  /* ---- Dialogue ---- */
+  #dialogue { position: absolute; left: 50%; bottom: 26px; transform: translateX(-50%);
+    width: min(640px, 90vw); background: rgba(8,10,22,.88); border: 1px solid #ff2e88;
+    border-radius: 10px; padding: 16px 20px; display: none; pointer-events: auto; }
+  #dialogue-name { color: #ff7ab8; font-weight: 700; margin-bottom: 6px; }
+  #dialogue-text { font-size: 16px; line-height: 1.6; }
+  #dialogue-next { margin-top: 12px; }
+
+  /* ---- Full screens ---- */
+  .screen { position: fixed; inset: 0; z-index: 10; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; text-align: center;
+    background: linear-gradient(160deg, rgba(20,8,40,.82), rgba(8,20,44,.86)); }
+  .screen h1 { font-size: 64px; margin: 0; letter-spacing: 4px;
+    background: linear-gradient(90deg, #ff2e88, #ffb020, #22d3ee);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    text-shadow: 0 0 40px rgba(255,46,136,.35); }
+  .screen h2 { font-size: 20px; font-weight: 400; color: #ffd9ea; margin: 10px 0 4px; letter-spacing: 6px; }
+  .screen p { max-width: 620px; line-height: 1.8; color: #dfe6f2; font-size: 15px; }
+  .controls { font-size: 14px; line-height: 2; color: #c9d4e8; background: rgba(0,0,0,.35);
+    border: 1px solid rgba(255,255,255,.18); border-radius: 10px; padding: 12px 26px; margin: 14px 0; }
+  .controls b { color: #fff; background: rgba(255,255,255,.14); border-radius: 4px; padding: 1px 7px; }
+  button { pointer-events: auto; cursor: pointer; font-size: 17px; font-weight: 700; color: #fff;
+    background: linear-gradient(90deg, #ff2e88, #ff6a3d); border: none; border-radius: 8px;
+    padding: 12px 34px; margin: 6px; box-shadow: 0 4px 18px rgba(255,46,136,.45); }
+  button:hover { filter: brightness(1.12); }
+  button.ghost { background: rgba(255,255,255,.14); box-shadow: none; border: 1px solid rgba(255,255,255,.4); }
+  #save-info { color: #9fe8b4; font-size: 14px; min-height: 20px; }
+  .big { font-size: 44px !important; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<div id="hud" class="hidden">
+  <div id="hud-top">
+    <div id="cash">$0</div>
+    <div id="stars">☆☆☆☆☆</div>
+    <div id="health-bar"><div id="health-fill"></div></div>
+  </div>
+  <div id="objective-box"><b>任务</b> <span id="objective"></span></div>
+  <canvas id="minimap" width="180" height="180"></canvas>
+  <div id="speed"></div>
+  <div id="toast" style="opacity:0"></div>
+  <div id="crosshair"></div>
+  <div id="hint">WASD 移动 · 鼠标视角 · E 上/下车 · F 拳击 · 左键射击<br>Shift 疾跑 · M 任务 · P 暂停 · 空格手刹 · R 扶正车辆</div>
+  <div id="dialogue">
+    <div id="dialogue-name"></div>
+    <div id="dialogue-text"></div>
+    <button id="dialogue-next">继续 ▸</button>
+  </div>
+</div>
+<div id="damage"></div>
+
+<div id="screen-start" class="screen">
+  <h1>落日港霓虹</h1>
+  <h2>SUNSET NEON CITY 3D</h2>
+  <p>欢迎来到落日港——一座被夕阳和霓虹点亮的海港之城。你是刚下船的阿杰，
+  兜里没几个钱，野心倒是不小。帮老K跑三单活儿，偷车、飙车、甩掉条子，
+  在这座城里打出自己的名号。所有城市、人物、车辆与故事均为原创。</p>
+  <div class="controls">
+    <b>W A S D</b> 移动 &nbsp; <b>鼠标</b> 视角 &nbsp; <b>E</b> 上车 / 下车（偷车）<br>
+    <b>左键</b> 射击 &nbsp; <b>F</b> 拳击 &nbsp; <b>Shift</b> 疾跑 &nbsp; <b>空格</b> 手刹<br>
+    <b>M</b> 接任务 &nbsp; <b>P</b> 暂停 &nbsp; 拾取路边的 <b style="color:#39d353">$现金</b> 和 <b style="color:#ff5a5a">急救包</b>
+  </div>
+  <div id="save-info"></div>
+  <div>
+    <button id="btn-start">开始新游戏</button>
+    <button id="btn-continue" class="ghost" style="display:none">继续游戏</button>
+  </div>
+  <p style="font-size:12px;color:#8a94a8">3 个剧情任务 · 通缉 0–5 星 · 警察追捕 · 交通与行人 · 自动存档</p>
+</div>
+
+<div id="screen-pause" class="screen hidden">
+  <h1 class="big">已暂停</h1>
+  <p>落日港在等你回来。进度已自动保存。</p>
+  <div>
+    <button id="btn-resume">继续</button>
+    <button id="btn-save-quit" class="ghost">保存并回主菜单</button>
+  </div>
+</div>
+
+<div id="screen-dead" class="screen hidden">
+  <h1 class="big">你倒下了</h1>
+  <p>医院的账单可不便宜——复活会扣除 10% 现金。落日港不相信眼泪，只相信卷土重来。</p>
+  <div>
+    <button id="btn-restart">复活并继续</button>
+    <button id="btn-quit" class="ghost">回主菜单</button>
+  </div>
+</div>
+
+<div id="screen-complete" class="screen hidden">
+  <h1 class="big">落日港是你的了</h1>
+  <p>三单活儿全部干完，老K兑现了承诺。从今天起，这座城的霓虹都为你而亮。<br>最终现金：<b id="final-cash" style="color:#39d353">$0</b> —— 还可以继续自由探索，刷钱、飙车、甩条子。</p>
+  <div>
+    <button id="btn-again">继续自由探索</button>
+    <button id="btn-quit2" class="ghost">回主菜单</button>
+  </div>
+</div>
+
+<script type="importmap">
+{ "imports": { "three": "./vendor/three.module.min.js" } }
+</script>
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>
